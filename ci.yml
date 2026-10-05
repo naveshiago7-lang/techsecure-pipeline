@@ -1,0 +1,78 @@
+name: CI/CD seguro
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build e Teste
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependências (build)
+        run: pip install -r requirements-dev.txt
+      - name: Testes automatizados
+        run: pytest -v
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: SAST com Bandit (código)
+        run: |
+          pip install bandit==1.7.10
+          bandit -r app.py -f txt || true
+      - name: SCA com Trivy (dependências)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: table
+          # 0 = só reporta (bom para a 1ª execução e para mostrar achados).
+          # Depois de corrigir, mude para '1' para a pipeline FALHAR se houver HIGH/CRITICAL.
+          exit-code: "0"
+
+  image:
+    name: Build da Imagem
+    runs-on: ubuntu-latest
+    needs: security
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagem Docker
+        run: docker build -t techsecure-app:${{ github.sha }} .
+      - name: Scan da imagem com Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: techsecure-app:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          format: table
+          exit-code: "0"
+
+  deploy:
+    name: Deploy automático
+    runs-on: self-hosted   # runner instalado na SUA máquina (ver guia)
+    needs: image
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build local da imagem
+        run: docker build -t techsecure-app:latest .
+      - name: Subir/atualizar o container
+        run: |
+          docker rm -f techsecure-app || true
+          docker run -d --name techsecure-app -p 5000:5000 techsecure-app:latest
+      - name: Verificar saúde
+        run: |
+          sleep 3
+          curl -f http://localhost:5000/health

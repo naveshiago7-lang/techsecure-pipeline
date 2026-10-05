@@ -1,0 +1,4 @@
+[
+  "test_app.py::test_health_retorna_ok_e_versao",
+  "test_app.py::test_home_responde_200"
+]

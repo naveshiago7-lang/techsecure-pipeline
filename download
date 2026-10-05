@@ -1,0 +1,7 @@
+.git
+.github
+__pycache__
+*.pyc
+test_app.py
+requirements-dev.txt
+README.md
