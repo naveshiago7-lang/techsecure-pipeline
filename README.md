@@ -27,4 +27,5 @@ curl http://localhost:5000/health
 - **Trivy (SCA + imagem):** procura CVEs nas dependências e na imagem Docker.
 
 ## Integrantes
-(preencher)
+(Hiago Naves RA-2503721)
+(Lucas Confinõ Sartori)
